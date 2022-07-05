@@ -1,1 +1,1 @@
-# buildfrontier-portfolio
+制作物のコード部分のみとなります。
