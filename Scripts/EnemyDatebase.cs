@@ -55,9 +55,9 @@ public class EnemyDatebase : ScriptableObject
         {
             return (buffRate <= 0) ? 0 : (int)System.Math.Round((float)(Def) * (float)(buffRate) / 100, System.MidpointRounding.AwayFromZero);
         }
-        public int GetSpd(int buffRate)
+        public float GetSpd(int buffRate)
         {
-            return (int)System.Math.Round((float)(Spd) * (float)(Mathf.Clamp(buffRate, 1, 200)) / 100, System.MidpointRounding.AwayFromZero);
+            return (float)System.Math.Round(Spd * (Mathf.Clamp(buffRate, 1, 200)) / 100f, 2, System.MidpointRounding.AwayFromZero);
         }
         public int GetArmorPoint(int buffRate)
         {

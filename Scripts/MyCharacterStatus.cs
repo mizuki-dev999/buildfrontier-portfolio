@@ -10,7 +10,7 @@ public class MyCharacterStatus : MonoBehaviour
     static public MyCharacterStatus singleton;
     //----------------------------------------
     public string Name = "テスト";
-    public int Level = 1;
+    public int Level = 100;
     public int maxLevel = 100;
     public int JPDuelist = 100;
     public int JPWarrior = 0;
@@ -224,7 +224,7 @@ public class MyCharacterStatus : MonoBehaviour
         AutoHpRecoverRate = 100; //自動体力回復補正
         AutoMpRecover = 5; // 自動マナ回復
         AutoMpRecoverRate = 100; // 自動マナ回復補正
-        GuardRate = 100; //ガード確率
+        GuardRate = 0; //ガード確率
         ExpGetRate = 0; // 取得経験量増加
         #endregion
         //パッシブスキル反映

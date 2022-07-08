@@ -42,7 +42,7 @@ public class MapManager : MonoBehaviour
         myStatus.dropLegendaryItemNum = 0;
         myLevelText.text = $"Lv{myStatus.Level}";
         myMoneyText.text = $"{myStatus.Money:N0}";
-        expBar.fillAmount = (float)myStatus.Exp / (float)expTable.GetNextExp(myStatus.Level);
+        if(myStatus.Level < myStatus.maxLevel)expBar.fillAmount = (float)myStatus.Exp / (float)expTable.GetNextExp(myStatus.Level);
         CreateStageIcon(parent, System.Math.Min(14, 14)); // ƒ{ƒ^ƒ“‚Ì¶¬
         //myStatus.ClearMapIdList.Count / 3 + 1
     }

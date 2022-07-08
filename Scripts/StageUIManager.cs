@@ -88,7 +88,12 @@ public class StageUIManager : MonoBehaviour
     public Image EnemyImage; // 敵Image
     public GameObject enemyImage; // 敵のフェードアウトに必要!!
     public ExpTable expTable;
-    
+    //-------------------------
+    [Header("デバッグ用")]
+    public TextMeshProUGUI baseStatus;
+    public TextMeshProUGUI damageStatus;
+    public TextMeshProUGUI resistStatus;
+    public TextMeshProUGUI anotherStatus;
 
     void Awake()
     {
@@ -314,15 +319,16 @@ public class StageUIManager : MonoBehaviour
     }
     public void LevelUp(int getExp)
     {
-        if (myStatus.Level == 100) return;
+        if (myStatus.Level == myStatus.maxLevel) return;
         myStatus.Exp += getExp;
         while(myStatus.Exp >= expTable.GetNextExp(myStatus.Level))
         {
             myStatus.Exp -= expTable.GetNextExp(myStatus.Level);
             myStatus.Level++;
             UpdateLevelText(myStatus.Level);
-            if (myStatus.Level == 100) break;
+            if (myStatus.Level == myStatus.maxLevel) break;
         }
+        myStatus.SetStatus(battleManager.skillDatabases);
     }
     public void ClickSound()
     {

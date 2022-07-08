@@ -12,10 +12,16 @@ public class NextExpInfo : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     public GameObject myCharacterStatus;
     public MyCharacterStatus myStatus;
 
+    void Start()
+    {
+        myCharacterStatus = GameObject.Find("MyCharacterStatus"); // ¶¬‚µ‚½MyCharacterStatus‚ğæ“¾
+        myStatus = myCharacterStatus.GetComponent<MyCharacterStatus>(); // script‚ğæ“¾
+    }
     public void OnPointerEnter(PointerEventData eventData)
     {
         nextExpInfoPanel.SetActive(true);
-        nextExpText.text = $"{myStatus.Exp}/{expTable.GetNextExp(myStatus.Level)}";
+        if (myStatus.Level < myStatus.maxLevel) nextExpText.text = $"{myStatus.Exp}/{expTable.GetNextExp(myStatus.Level)}";
+        else nextExpText.text = $"Max";
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -23,9 +29,5 @@ public class NextExpInfo : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
         nextExpInfoPanel.SetActive(false);
     }
 
-    void Start()
-    {
-        myCharacterStatus = GameObject.Find("MyCharacterStatus"); // ¶¬‚µ‚½MyCharacterStatus‚ğæ“¾
-        myStatus = myCharacterStatus.GetComponent<MyCharacterStatus>(); // script‚ğæ“¾
-    }
+   
 }

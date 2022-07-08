@@ -108,10 +108,14 @@ public class BattleManager : MonoBehaviour
         stageUI.stageNameText.text = $"{mapData.Name} ({difficultyLevel})";
         stageUI.hpBar.fillAmount = 1;
         stageUI.mpBar.fillAmount = 1;
-        stageUI.expBar.fillAmount = (float)myStatus.Exp / (float)stageUI.expTable.GetNextExp(myStatus.Level);
+        if (myStatus.Level < myStatus.maxLevel) stageUI.expBar.fillAmount = (float)myStatus.Exp / (float)stageUI.expTable.GetNextExp(myStatus.Level);
+        else stageUI.expBar.fillAmount = 1;
         stageUI.UpdateLevelText(myStatus.Level);
         stopTime = 1.0f; // シーン遷移時のフェードの待機時間の初期化
         TimerInit();
+        skillEffectManager.MyValiableInit();
+        skillEffectManager.EnemyValiableInit();
+        skillEffectManager.SkillSet();
         phase = Phase.EncountPhase;
     }
     void Update()
@@ -122,6 +126,7 @@ public class BattleManager : MonoBehaviour
                 BattleStart();
                 break;
             case Phase.BattlePhase:
+                ShowEnemyStatus();
                 BattleSystem();
                 CountDown();
                 myAtkWaitTime += Time.deltaTime;
@@ -162,7 +167,6 @@ public class BattleManager : MonoBehaviour
                 break;
             default:
                 break;
-
         }
     }
 
@@ -180,7 +184,6 @@ public class BattleManager : MonoBehaviour
         myAtkWaitTime = 0;
         enemyAtkWaitTime = 0;
         TimerInit();
-        //敵のバフリセット
         if (currentstage == 0)
         {
             phase = Phase.Stop;
@@ -313,18 +316,18 @@ public class BattleManager : MonoBehaviour
     #region
     public void BattleSystem()
     {
-        if (myAtkWaitTime >= 1f / myStatus.GetSpd(skillEffectManager.mySpdRate) && enemyAtkWaitTime >= 1 / enemyStatus.GetSpd(skillEffectManager.enemySpdRate))
+        if (myAtkWaitTime >= 1f / myStatus.GetSpd(skillEffectManager.mySpdRate()) && enemyAtkWaitTime >= 1 / enemyStatus.GetSpd(skillEffectManager.enemySpdRate()))
         {
             MyAttack();
             EnemyAttack();
         }
         // 自分の攻撃
-        else if (myAtkWaitTime >= 1f / myStatus.GetSpd(skillEffectManager.mySpdRate))
+        else if (myAtkWaitTime >= 1f / myStatus.GetSpd(skillEffectManager.mySpdRate()))
         {
             MyAttack();
         }
         // 敵の攻撃
-        else if (enemyAtkWaitTime >= 1f / enemyStatus.GetSpd(skillEffectManager.enemySpdRate))
+        else if (enemyAtkWaitTime >= 1f / enemyStatus.GetSpd(skillEffectManager.enemySpdRate()))
         {
             EnemyAttack();
         }
@@ -353,10 +356,9 @@ public class BattleManager : MonoBehaviour
     public void MyAttack()
     {
         myAtkWaitTime = 0;
-        float damageRate = DamageRateCalculation(myStatus.GetAtk(skillEffectManager.myAtkNum, skillEffectManager.myAtkRate), enemyStatus.GetAtk(skillEffectManager.enemyAtkRate));
-        if (Random.value < (float)(enemyStatus.GetGuardRate(skillEffectManager.enemyGuardRate)) / 100) //Guard
+        float damageRate = DamageRateCalculation(myStatus.GetAtk(skillEffectManager.myAtkNum(), skillEffectManager.myAtkRate()), enemyStatus.GetDef(skillEffectManager.enemyDefRate()));
+        if (Random.value < (float)(enemyStatus.GetGuardRate(skillEffectManager.enemyGuardRate())) / 100) //Guard
         {
-            Debug.Log("guard");
             GameObject damageObject = Instantiate(myAttackMissPrefab, new Vector3(Random.Range(910, 1011), Random.Range(490, 590), 0), Quaternion.identity);
             DamageTextEffect(damageObject);
             damageObject.GetComponent<TextMeshProUGUI>().text = "Guard";
@@ -383,7 +385,7 @@ public class BattleManager : MonoBehaviour
         }
         else //normal
         {
-            int finalDmg = (int)System.Math.Round(GetMyBaseDmg() * damageRate, System.MidpointRounding.AwayFromZero) - enemyStatus.GetArmorPoint(skillEffectManager.enemyArmorPointRate);
+            int finalDmg = (int)System.Math.Round(GetMyBaseDmg() * damageRate, System.MidpointRounding.AwayFromZero) - enemyStatus.GetArmorPoint(skillEffectManager.enemyArmorPointRate());
             finalDmg = (finalDmg < 0) ? 0 : finalDmg;
             AttackEffect("NormalSord");
             SEManager.Instance.Play(SEPath.SORD_ATTACK);
@@ -409,8 +411,8 @@ public class BattleManager : MonoBehaviour
     {
         SEManager.Instance.Play(SEPath.ENEMY_ATTACK);
         enemyAtkWaitTime = 0;
-        float damageRate = DamageRateCalculation(enemyStatus.GetAtk(skillEffectManager.enemyAtkRate), myStatus.GetDef(skillEffectManager.myDefNum, skillEffectManager.myDefRate));
-        if (Random.value < (float)(myStatus.GetGuardRate(skillEffectManager.myGuardRate)) / 100) //Guard
+        float damageRate = DamageRateCalculation(enemyStatus.GetAtk(skillEffectManager.enemyAtkRate()), myStatus.GetDef(skillEffectManager.myDefNum(), skillEffectManager.myDefRate()));
+        if (Random.value < (float)(myStatus.GetGuardRate(skillEffectManager.myGuardRate())) / 100) //Guard
         {
             GameObject damageObject = Instantiate(enemyAttackMissPrefab, new Vector3(Random.Range(600, 885), Random.Range(91, 131), 0), Quaternion.identity);
             DamageTextEffect(damageObject);
@@ -428,18 +430,18 @@ public class BattleManager : MonoBehaviour
             GameObject damageObject = Instantiate(enemyDamagePrefab, new Vector3(Random.Range(600, 885), Random.Range(91, 131), 0), Quaternion.identity);
             DamageTextEffect(damageObject);
             damageObject.GetComponent<TextMeshProUGUI>().text = $"<line-height=55%><size=70%><cspace=-0.1em>CRITICAL</cspace></size>\n<cspace=-0.05em>{finalDmg}</cspace>";
-            myCurrentHp = Mathf.Clamp(myCurrentHp - finalDmg, 0, myStatus.Hp);
+            myCurrentHp = Mathf.Clamp(myCurrentHp - finalDmg, 0, myStatus.GetHp());
         }
         else //normal
         {
-            int finalDmg = (int)System.Math.Round(GetEnemyBaseDmg() * damageRate, System.MidpointRounding.AwayFromZero) - myStatus.GetArmorPoint(skillEffectManager.myArmorPointNum, skillEffectManager.myArmorPointRate);
+            int finalDmg = (int)System.Math.Round(GetEnemyBaseDmg() * damageRate, System.MidpointRounding.AwayFromZero) - myStatus.GetArmorPoint(skillEffectManager.myArmorPointNum(), skillEffectManager.myArmorPointRate());
             finalDmg = (finalDmg < 0) ? 0 : finalDmg;
             GameObject damageObject = Instantiate(enemyDamagePrefab, new Vector3(Random.Range(600, 885), Random.Range(91, 131), 0), Quaternion.identity);
             DamageTextEffect(damageObject);
             damageObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>{finalDmg}</cspace>";
-            myCurrentHp = Mathf.Clamp(myCurrentHp - finalDmg, 0, myStatus.Hp);
+            myCurrentHp = Mathf.Clamp(myCurrentHp - finalDmg, 0, myStatus.GetHp());
         }
-        stageUI.hpBar.fillAmount = (float)myCurrentHp / (float)myStatus.Hp;
+        stageUI.hpBar.fillAmount = (float)myCurrentHp / (float)myStatus.GetHp();
         stageUI.UpdateMyHpText(myCurrentHp);
         if (myCurrentHp == 0)
         {
@@ -469,13 +471,13 @@ public class BattleManager : MonoBehaviour
     public int GetMyBaseDmg()
     {
         int totalDmg = (int)System.Math.Round(
-            myStatus.GetPhisicalDmg(skillEffectManager.myPhisicalDmgNum, skillEffectManager.myPhisicalDmgRate) * (100 - enemyStatus.GetPhisicalResist(skillEffectManager.enemyPhisicalResist) / 100f)
-            + myStatus.GetFireDmg(skillEffectManager.myFireDmgNum, skillEffectManager.myFireDmgRate) * (100 - enemyStatus.GetFireResist(skillEffectManager.enemyFireResist) / 100f)
-            + myStatus.GetIceDmg(skillEffectManager.myIceDmgNum, skillEffectManager.myIceDmgRate) * (100 - enemyStatus.GetIceResist(skillEffectManager.enemyIceResist) / 100f)
-            + myStatus.GetThunderDmg(skillEffectManager.myThunderDmgNum, skillEffectManager.myThunderDmgRate) * (100 - enemyStatus.GetThunderResist(skillEffectManager.enemyThunderResist) / 100f)
-            + myStatus.GetWindDmg(skillEffectManager.myWindDmgNum, skillEffectManager.myWindDmgRate) * (100 - enemyStatus.GetWindResist(skillEffectManager.enemyWindResist) / 100f)
-            + myStatus.GetShiningDmg(skillEffectManager.myShiningDmgNum, skillEffectManager.myShiningDmgRate) * (100 - enemyStatus.GetShiningResist(skillEffectManager.enemyShiningResist) / 100f)
-            + myStatus.GetDarknessDmg(skillEffectManager.myDarknessDmgNum, skillEffectManager.myDarknessDmgRate) * (100 - enemyStatus.GetDarknessResist(skillEffectManager.enemyDarknessResist) / 100f), System.MidpointRounding.AwayFromZero);
+            (myStatus.GetPhisicalDmg(skillEffectManager.myPhisicalDmgNum(), skillEffectManager.myPhisicalDmgRate()) * (100 - enemyStatus.GetPhisicalResist(skillEffectManager.enemyPhisicalResist())) / 100f)
+            + (myStatus.GetFireDmg(skillEffectManager.myFireDmgNum(), skillEffectManager.myFireDmgRate()) * (100 - enemyStatus.GetFireResist(skillEffectManager.enemyFireResist())) / 100f)
+            + (myStatus.GetIceDmg(skillEffectManager.myIceDmgNum(), skillEffectManager.myIceDmgRate()) * (100 - enemyStatus.GetIceResist(skillEffectManager.enemyIceResist())) / 100f)
+            + (myStatus.GetThunderDmg(skillEffectManager.myThunderDmgNum(), skillEffectManager.myThunderDmgRate()) * (100 - enemyStatus.GetThunderResist(skillEffectManager.enemyThunderResist())) / 100f)
+            + (myStatus.GetWindDmg(skillEffectManager.myWindDmgNum(), skillEffectManager.myWindDmgRate()) * (100 - enemyStatus.GetWindResist(skillEffectManager.enemyWindResist())) / 100f)
+            + (myStatus.GetShiningDmg(skillEffectManager.myShiningDmgNum(), skillEffectManager.myShiningDmgRate()) * (100 - enemyStatus.GetShiningResist(skillEffectManager.enemyShiningResist())) / 100f)
+            + (myStatus.GetDarknessDmg(skillEffectManager.myDarknessDmgNum(), skillEffectManager.myDarknessDmgRate()) * (100 - enemyStatus.GetDarknessResist(skillEffectManager.enemyDarknessResist())) / 100f), System.MidpointRounding.AwayFromZero);
         totalDmg += Random.Range(0, totalDmg / 10 + 1);
         return totalDmg;
     }
@@ -486,13 +488,13 @@ public class BattleManager : MonoBehaviour
     public int GetEnemyBaseDmg()
     {
         int totalDmg = (int)System.Math.Round(
-            enemyStatus.GetPhisicalDmg(skillEffectManager.enemyPhisicalDmg) * (100 - myStatus.GetPhisicalResist(skillEffectManager.enemyPhisicalResist) / 100f)
-            + enemyStatus.GetFireDmg(skillEffectManager.enemyFireDmg) * (100 - myStatus.GetFireResist(skillEffectManager.enemyFireResist) / 100f)
-            + enemyStatus.GetIceDmg(skillEffectManager.enemyIceDmg) * (100 - myStatus.GetIceResist(skillEffectManager.enemyIceResist) / 100f)
-            + enemyStatus.GetThunderDmg(skillEffectManager.enemyThunderDmg) * (100 - myStatus.GetThunderResist(skillEffectManager.enemyThunderResist) / 100f)
-            + enemyStatus.GetWindDmg(skillEffectManager.enemyWindDmg) * (100 - myStatus.GetWindResist(skillEffectManager.enemyWindResist) / 100f)
-            + enemyStatus.GetShiningDmg(skillEffectManager.enemyShiningDmg) * (100 - myStatus.GetShiningResist(skillEffectManager.enemyShiningResist) / 100f)
-            + enemyStatus.GetDarknessDmg(skillEffectManager.enemyDarknessDmg) * (100 - myStatus.GetDarknessResist(skillEffectManager.enemyDarknessResist) / 100f), System.MidpointRounding.AwayFromZero);
+            (enemyStatus.GetPhisicalDmg(skillEffectManager.enemyPhisicalDmg()) * (100 - myStatus.GetPhisicalResist(skillEffectManager.myPhisicalResist())) / 100f)
+            + (enemyStatus.GetFireDmg(skillEffectManager.enemyFireDmg()) * (100 - myStatus.GetFireResist(skillEffectManager.myFireResist())) / 100f)
+            + (enemyStatus.GetIceDmg(skillEffectManager.enemyIceDmg()) * (100 - myStatus.GetIceResist(skillEffectManager.myIceResist())) / 100f)
+            + (enemyStatus.GetThunderDmg(skillEffectManager.enemyThunderDmg()) * (100 - myStatus.GetThunderResist(skillEffectManager.myThunderResist())) / 100f)
+            + (enemyStatus.GetWindDmg(skillEffectManager.enemyWindDmg()) * (100 - myStatus.GetWindResist(skillEffectManager.myWindResist())) / 100f)
+            + (enemyStatus.GetShiningDmg(skillEffectManager.enemyShiningDmg()) * (100 - myStatus.GetShiningResist(skillEffectManager.myShiningResist())) / 100f)
+            + (enemyStatus.GetDarknessDmg(skillEffectManager.enemyDarknessDmg()) * (100 - myStatus.GetDarknessResist(skillEffectManager.myDarknessResist())) / 100f), System.MidpointRounding.AwayFromZero);
         totalDmg += Random.Range(0, totalDmg / 10 + 1);
         return totalDmg;
     }
@@ -541,54 +543,55 @@ public class BattleManager : MonoBehaviour
         int recoverHp;
         int recoverMp;
         int recoverEnemyHp;
-        if (myCurrentHp + myStatus.GetAutoHpRecover(skillEffectManager.myAutoHpRecoverNum, skillEffectManager.myAutoHpRecoverRate) > myStatus.Hp)
+        if (myCurrentHp + myStatus.GetAutoHpRecover(skillEffectManager.myAutoHpRecoverNum(), skillEffectManager.myAutoHpRecoverRate()) > myStatus.Hp)
         {
             myCurrentHp = myStatus.Hp;
             recoverHp = myStatus.Hp - myCurrentHp;
         }
         else
         {
-            myCurrentHp += myStatus.GetAutoHpRecover(skillEffectManager.myAutoHpRecoverNum, skillEffectManager.myAutoHpRecoverRate);
-            recoverHp = myStatus.GetAutoHpRecover(skillEffectManager.myAutoHpRecoverNum, skillEffectManager.myAutoHpRecoverRate);
+            myCurrentHp += myStatus.GetAutoHpRecover(skillEffectManager.myAutoHpRecoverNum(), skillEffectManager.myAutoHpRecoverRate());
+            recoverHp = myStatus.GetAutoHpRecover(skillEffectManager.myAutoHpRecoverNum(), skillEffectManager.myAutoHpRecoverRate());
         }
 
-        if (myCurrentMp + myStatus.GetAutoMpRecover(skillEffectManager.myAutoMpRecoverNum, skillEffectManager.myAutoMpRecoverRate) > myStatus.Mp)
+        if (myCurrentMp + myStatus.GetAutoMpRecover(skillEffectManager.myAutoMpRecoverNum(), skillEffectManager.myAutoMpRecoverRate()) > myStatus.Mp)
         {
             myCurrentMp = myStatus.Mp;
             recoverMp = myStatus.Mp - myCurrentMp;
         }
         else
         {
-            myCurrentMp += myStatus.GetAutoMpRecover(skillEffectManager.myAutoMpRecoverNum, skillEffectManager.myAutoMpRecoverRate);
-            recoverMp = myStatus.GetAutoMpRecover(skillEffectManager.myAutoMpRecoverNum, skillEffectManager.myAutoMpRecoverRate);
+            myCurrentMp += myStatus.GetAutoMpRecover(skillEffectManager.myAutoMpRecoverNum(), skillEffectManager.myAutoMpRecoverRate());
+            recoverMp = myStatus.GetAutoMpRecover(skillEffectManager.myAutoMpRecoverNum(), skillEffectManager.myAutoMpRecoverRate());
         }
 
-        if (enemyCurrentHp + enemyStatus.GetAutoHpRecover(skillEffectManager.enemyAutoHpRecover) > enemyStatus.Hp)
+        if (enemyCurrentHp + enemyStatus.GetAutoHpRecover(skillEffectManager.enemyAutoHpRecover()) > enemyStatus.Hp)
         {
             enemyCurrentHp = enemyStatus.Hp;
             recoverEnemyHp = enemyStatus.Hp - enemyCurrentHp;
         }
         else
         {
-            enemyCurrentHp += enemyStatus.GetAutoHpRecover(skillEffectManager.enemyAutoHpRecover);
-            recoverEnemyHp = enemyStatus.GetAutoHpRecover(skillEffectManager.enemyAutoHpRecover);
+            enemyCurrentHp += enemyStatus.GetAutoHpRecover(skillEffectManager.enemyAutoHpRecover());
+            recoverEnemyHp = enemyStatus.GetAutoHpRecover(skillEffectManager.enemyAutoHpRecover());
         }
+        stageUI.hpBar.fillAmount = (float)myCurrentHp / (float)myStatus.GetHp();
+        stageUI.UpdateMyHpText(myCurrentHp);
+        stageUI.mpBar.fillAmount = (float)myCurrentMp / (float)myStatus.GetMp();
+        stageUI.UpdateMyMpText(myCurrentMp);
+        stageUI.enemyHpBar.fillAmount = (float)enemyCurrentHp / (float)enemyStatus.Hp;
+        stageUI.enemyPeacentageText.text = $"<size=75%>{(int)Mathf.Ceil((float)enemyCurrentHp * 100 / (float)enemyStatus.Hp)}%</size>";
         /*ダメージ表記をするためのコード
-        GameObject recoverHpObject = Instantiate(hpRecoverPrefab, new Vector3(Random.Range(600, 885), Random.Range(91, 131), 0), Quaternion.identity);
-        DamageTextEffect(recoverHpObject);
-        recoverHpObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>+{recoverHp}</cspace>";
-        GameObject recoverMpObject = Instantiate(mpRecoverPrefab, new Vector3(1328.8f, 111, 0), Quaternion.identity);
-        DamageTextEffect(recoverMpObject);
-        recoverMpObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>+{recoverMp}</cspace>";
-        GameObject recoverEnemyHpObject = Instantiate(enemyhpRecoverPrefab, new Vector3(Random.Range(910, 1011), Random.Range(490, 590), 0), Quaternion.identity);
-        DamageTextEffect(recoverEnemyHpObject);
-        recoverEnemyHpObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>+{recoverEnemyHp}</cspace>";
+        ShowRecoverHpText(recoverHp);
+        ShowRecoverMpText(recoverMp);
+        ShowEnemyRecoverHp(recoverEnemyHp)
         */
     }
     #endregion
     // 敵撃破時の処理---------------------------------------------------------------------------------------
     public void DefeatEnemy()
     {
+        skillEffectManager.ResetEnemyEffect();//敵のバフリセット
         SEManager.Instance.Play(SEPath.MONEY_DROP);
         float getExp = (enemyStatus.Exp * 1) * (100 + Mathf.Max(myStatus.ExpGetRate, 0)) / 100f;
         if (myStatus.Level != 100) stageUI.LevelUp((int)System.Math.Round(getExp, System.MidpointRounding.AwayFromZero));
@@ -647,24 +650,26 @@ public class BattleManager : MonoBehaviour
         int[][] allSkillLevelArys = myStatus.GetAllSkillLevelArys();
         return allSkillLevelArys[job][id];
     }
+
+    //スキル関連------------------------------------------------
+    #region
     /// <summary>
     /// 攻撃スキル
     /// </summary>
     /// <param name="skillDamageRate">スキル効果量</param>
-    public void MySkillAttack(float skillDamageRate)
+    public void MySkillAttack(float skillDamageRate = 0, float hpStealRate = 0, float mpStealRate = 0)
     {
+        Debug.Log("攻撃スキル");
         int finalDmg = 0;
-        float damageRate = DamageRateCalculation(myStatus.GetAtk(skillEffectManager.myAtkNum, skillEffectManager.myAtkRate), enemyStatus.GetAtk(skillEffectManager.enemyAtkRate));
-        if (Random.value < (float)(enemyStatus.GetGuardRate(skillEffectManager.enemyGuardRate)) / 100) //Guard
+        float damageRate = DamageRateCalculation(myStatus.GetAtk(skillEffectManager.myAtkNum(), skillEffectManager.myAtkRate()), enemyStatus.GetDef(skillEffectManager.enemyDefRate()));
+        if (Random.value < (float)(enemyStatus.GetGuardRate(skillEffectManager.enemyGuardRate())) / 100) //Guard
         {
-            Debug.Log("guard");
             GameObject damageObject = Instantiate(myAttackMissPrefab, new Vector3(Random.Range(910, 1011), Random.Range(490, 590), 0), Quaternion.identity);
             DamageTextEffect(damageObject);
             damageObject.GetComponent<TextMeshProUGUI>().text = "Guard";
         }
         else if (damageRate == 0) //miss
         {
-            AttackEffect("NormalSord");
             SEManager.Instance.Play(SEPath.MISS_SORD);
             GameObject damageObject = Instantiate(myAttackMissPrefab, new Vector3(Random.Range(910, 1011), Random.Range(490, 590), 0), Quaternion.identity);
             DamageTextEffect(damageObject);
@@ -674,7 +679,6 @@ public class BattleManager : MonoBehaviour
             //装甲値無視
             finalDmg = (int)System.Math.Round(GetMyBaseDmg() * damageRate * (100f + skillDamageRate) / 100f, System.MidpointRounding.AwayFromZero);
             finalDmg = (finalDmg < 0) ? 0 : finalDmg;
-            AttackEffect("CriticalSord");
             SEManager.Instance.Play(SEPath.CRITICAL_SORD_ATTACK);
             HitEnenyReaction();
             GameObject damageObject = Instantiate(damagePrefab, new Vector3(Random.Range(910, 1011), Random.Range(490, 590), 0), Quaternion.identity);
@@ -684,9 +688,8 @@ public class BattleManager : MonoBehaviour
         }
         else //normal
         {
-            finalDmg = (int)System.Math.Round(GetMyBaseDmg() * damageRate, System.MidpointRounding.AwayFromZero) - enemyStatus.GetArmorPoint(skillEffectManager.enemyArmorPointRate);
+            finalDmg = (int)System.Math.Round(GetMyBaseDmg() * damageRate, System.MidpointRounding.AwayFromZero) - enemyStatus.GetArmorPoint(skillEffectManager.enemyArmorPointRate());
             finalDmg = (finalDmg < 0) ? 0 : finalDmg;
-            AttackEffect("NormalSord");
             SEManager.Instance.Play(SEPath.SORD_ATTACK);
             HitEnenyReaction();
             GameObject damageObject = Instantiate(damagePrefab, new Vector3(Random.Range(910, 1011), Random.Range(490, 590), 0), Quaternion.identity);
@@ -694,6 +697,8 @@ public class BattleManager : MonoBehaviour
             damageObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>{finalDmg}</cspace>";
             enemyCurrentHp = Mathf.Clamp(enemyCurrentHp - finalDmg, 0, enemyStatus.Hp);
         }
+        if (hpStealRate > 0) HpSteal(finalDmg,hpStealRate);
+        if (mpStealRate > 0) MpSteal(finalDmg,mpStealRate);
         stageUI.enemyHpBar.fillAmount = (float)enemyCurrentHp / (float)enemyStatus.Hp;
         stageUI.enemyPeacentageText.text = $"<size=75%>{(int)Mathf.Ceil((float)enemyCurrentHp * 100 / (float)enemyStatus.Hp)}%</size>";
         //敵の生死判定
@@ -704,25 +709,75 @@ public class BattleManager : MonoBehaviour
         }
     }
     /// <summary>
-    /// HP回復スキル
+    /// HP回復スキル(最大HPのN%回復)
     /// </summary>
     public void RecoverMyHp(float skillAmount)
     {
         int recoverHp = (int)System.Math.Round(myStatus.GetHp()*(skillAmount/100f), System.MidpointRounding.AwayFromZero);
-        myCurrentHp = Mathf.Clamp(myCurrentHp + recoverHp, 0, myStatus.GetHp()); 
-        GameObject recoverHpObject = Instantiate(hpRecoverPrefab, new Vector3(Random.Range(600, 885), Random.Range(91, 131), 0), Quaternion.identity);
-        DamageTextEffect(recoverHpObject);
-        recoverHpObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>+{recoverHp}</cspace>";
+        myCurrentHp = Mathf.Clamp(myCurrentHp + recoverHp, 0, myStatus.GetHp());
+        ShowRecoverHpText(recoverHp);
     }
     /// <summary>
-    /// MP回復スキル
+    /// MP回復スキル(最大MPのN%回復)
     /// </summary>
     public void RecoverMyMp(float skillAmount)
     {
         int recoverMp = (int)System.Math.Round(myStatus.GetMp() * (skillAmount / 100f), System.MidpointRounding.AwayFromZero);
         myCurrentMp = Mathf.Clamp(myCurrentMp + recoverMp, 0, myStatus.GetMp());
-        GameObject recoverMpObject = Instantiate(mpRecoverPrefab, new Vector3(1328.8f, 111, 0), Quaternion.identity);
+        ShowRecoverMpText(recoverMp);
+    }
+    /// <summary>
+    /// ライフスティール
+    /// </summary>
+    /// <param name="finalDmg">与ダメ</param>
+    /// <param name="hpStealRate">回復倍率</param>
+    public void HpSteal(int finalDmg, float hpStealRate)
+    {
+        int recoverHp = Mathf.Min((int)System.Math.Round(finalDmg * (hpStealRate / 100f), System.MidpointRounding.AwayFromZero), (int)System.Math.Round(myStatus.GetHp() * 0.1f, System.MidpointRounding.AwayFromZero));
+        myCurrentHp = Mathf.Clamp(myCurrentHp + recoverHp, 0, myStatus.GetHp());
+        ShowRecoverHpText(recoverHp);
+    }
+    /// <summary>
+    /// マナスティール
+    /// </summary>
+    /// <param name="finalDmg">与ダメ</param>
+    /// <param name="hpStealRate">回復倍率</param>
+    public void MpSteal(int finalDmg, float mpStealRate)
+    {
+        int recoverMp = Mathf.Min((int)System.Math.Round(finalDmg * (mpStealRate / 100f), System.MidpointRounding.AwayFromZero), (int)System.Math.Round(myStatus.GetMp() * 0.1f, System.MidpointRounding.AwayFromZero));
+        myCurrentMp = Mathf.Clamp(myCurrentMp + recoverMp, 0, myStatus.GetMp());
+        ShowRecoverMpText(recoverMp);
+    }
+    public void ShowRecoverHpText(int recoverHp)
+    {
+        GameObject recoverHpObject = Instantiate(hpRecoverPrefab, new Vector3(Random.Range(600, 885), Random.Range(91, 131), 0), Quaternion.identity);
+        DamageTextEffect(recoverHpObject);
+        recoverHpObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>+{recoverHp}</cspace>";
+        stageUI.hpBar.fillAmount = (float)myCurrentHp / (float)myStatus.GetHp();
+        stageUI.UpdateMyHpText(myCurrentHp);
+    }
+    public void ShowRecoverMpText(int recoverMp)
+    {
+        GameObject recoverMpObject = Instantiate(mpRecoverPrefab, new Vector3(Random.Range(1228.8f, 1428.8f), Random.Range(91, 131), 0), Quaternion.identity);
         DamageTextEffect(recoverMpObject);
         recoverMpObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>+{recoverMp}</cspace>";
+        stageUI.mpBar.fillAmount = (float)myCurrentMp / (float)myStatus.GetMp();
+        stageUI.UpdateMyMpText(myCurrentMp);
+    }
+    public void ShowEnemyRecoverHp(int recoverEnemyHp)
+    {
+        GameObject recoverEnemyHpObject = Instantiate(enemyhpRecoverPrefab, new Vector3(Random.Range(910, 1011), Random.Range(490, 590), 0), Quaternion.identity);
+        DamageTextEffect(recoverEnemyHpObject);
+        recoverEnemyHpObject.GetComponent<TextMeshProUGUI>().text = $"<cspace=-0.05em>+{recoverEnemyHp}</cspace>";
+        stageUI.enemyHpBar.fillAmount = (float)enemyCurrentHp / (float)enemyStatus.Hp;
+        stageUI.enemyPeacentageText.text = $"<size=75%>{(int)Mathf.Ceil((float)enemyCurrentHp * 100 / (float)enemyStatus.Hp)}%</size>";
+    }
+    #endregion
+    public void ShowEnemyStatus()
+    {
+        stageUI.baseStatus.text = $"<line-height=65%>HP:{enemyCurrentHp}/{enemyStatus.Hp}\nAtk:{enemyStatus.GetAtk(skillEffectManager.enemyAtkRate())}\nDef:{enemyStatus.GetDef(skillEffectManager.enemyDefRate())}\nSpd:{enemyStatus.GetSpd(skillEffectManager.enemySpdRate())}\nArmorPoint:{enemyStatus.GetArmorPoint(skillEffectManager.enemyArmorPointRate())}";
+        stageUI.damageStatus.text = $"<line-height=65%>PhisicalDmg:{enemyStatus.GetPhisicalDmg(skillEffectManager.enemyPhisicalDmg())}\nFireDmg:{enemyStatus.GetFireDmg(skillEffectManager.enemyFireDmg())}\nIceDmg:{enemyStatus.GetIceDmg(skillEffectManager.enemyIceDmg())}\nThunderDmg:{enemyStatus.GetThunderDmg(skillEffectManager.enemyThunderDmg())}\nWindDmg:{enemyStatus.GetWindDmg(skillEffectManager.enemyWindDmg())}\nShiningDmg:{enemyStatus.GetShiningDmg(skillEffectManager.enemyShiningDmg())}\nDarknessDmg:{enemyStatus.GetDarknessDmg(skillEffectManager.enemyDarknessDmg())}";
+        stageUI.resistStatus.text = $"<line-height=65%>PhisicalResist:{enemyStatus.GetPhisicalResist(skillEffectManager.enemyPhisicalResist())}\nFireResist:{enemyStatus.GetFireResist(skillEffectManager.enemyFireResist())}\nIceResist:{enemyStatus.GetIceResist(skillEffectManager.enemyIceResist())}\nThunderResist:{enemyStatus.GetThunderResist(skillEffectManager.enemyThunderResist())}\nWindResist:{enemyStatus.GetWindResist(skillEffectManager.enemyWindResist())}\nShiningResist:{enemyStatus.GetShiningResist(skillEffectManager.enemyShiningResist())}\nDarknessResist:{enemyStatus.GetDarknessResist(skillEffectManager.enemyDarknessResist())}";
+        stageUI.anotherStatus.text = $"<line-height=65%>AutoHpRecover:{enemyStatus.GetAutoHpRecover(skillEffectManager.enemyAutoHpRecover())}\nGuardRate:{enemyStatus.GetGuardRate(skillEffectManager.enemyGuardRate())}";
     }
 }

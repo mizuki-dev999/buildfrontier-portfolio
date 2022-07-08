@@ -121,7 +121,7 @@ public class SkillRegisterIcon : MonoBehaviour, IBeginDragHandler, IDragHandler,
                 case SkillDatabase.Skill.SkillEffect.EffectType.©“®HP‰ñ•œ:
                 case SkillDatabase.Skill.SkillEffect.EffectType.©“®MP‰ñ•œ:
                     if (skillEffect.target == 0) textList.Add($"©g‚Ì{skillEffect.effectType} +{skillEffect.EffectAmount * level}");
-                    else textList.Add($"“G‚Ì{skillEffect.effectType} {skillEffect.EffectAmount * level}");
+                    else textList.Add($"“G‚Ì{skillEffect.effectType} {skillEffect.EffectAmount * level}%");
                     break;
                 case SkillDatabase.Skill.SkillEffect.EffectType.•¨—‘Ï«:
                 case SkillDatabase.Skill.SkillEffect.EffectType.‰Š‘Ï«:
@@ -169,7 +169,6 @@ public class SkillRegisterIcon : MonoBehaviour, IBeginDragHandler, IDragHandler,
         }
         return string.Join("\n", textList);
     }
-
     public void OnBeginDrag(PointerEventData eventData)
     {
         draggingObj = Instantiate(this.gameObject);
@@ -180,12 +179,10 @@ public class SkillRegisterIcon : MonoBehaviour, IBeginDragHandler, IDragHandler,
         draggingObj.name = "draggingObj";
         skillImage.GetComponent<Image>().color = Color.gray;
     }
-
     public void OnDrag(PointerEventData eventData)
     {
         draggingObj.transform.position = eventData.position;
     }
-
     public void OnEndDrag(PointerEventData eventData)
     {
         var raycastResults = new List<RaycastResult>();

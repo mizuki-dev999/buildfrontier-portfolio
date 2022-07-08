@@ -192,25 +192,25 @@ public class SkillTreeIcon : MonoBehaviour
         homeUIManager.ClickSound();
         if (myStatus.Level < getLevel)
         {
-            Debug.Log("レベル不足");
+            homeUIManager.ShowAlertImage("習得に必要なレベルに達していません");
             flag = false;
         }
         if (skill.necessarySkillId != -1)
         {
             if (GetSkillLevel(job, skill.necessarySkillId) == 0)
             {
-                Debug.Log("必要スキルを取得していません");
+                homeUIManager.ShowAlertImage("習得に必要なスキルを習得していません");
                 flag = false;
             }
         }
         if (GetSkillLevel(job, id) == skill.MaxLevel)
         {
-            Debug.Log("レベル上限に達しています");
+            homeUIManager.ShowAlertImage("このスキルのレベルは上限に達しました");
             flag = false;
         }
         if (!JpCheck(job))
         {
-            Debug.Log("ジョブポイントが足りません");
+            homeUIManager.ShowAlertImage("ジョブポイントが足りません");
             flag = false;
         }
         if (flag)
@@ -235,12 +235,25 @@ public class SkillTreeIcon : MonoBehaviour
     {
         bool flag = true;
         homeUIManager.ClickSound();
-        if (myStatus.Level < getLevel) flag = false;
+        
         foreach (int nextid in skill.nextSkillId)
         {
-            if (GetSkillLevel(job, nextid) > 0 && GetSkillLevel(job, this.id) == 1) flag = false;
+            if (GetSkillLevel(job, nextid) > 0 && GetSkillLevel(job, this.id) == 1)
+            {
+                homeUIManager.ShowAlertImage("<size=80%>他のスキルの習得に必要なため未習得にできません");
+                flag = false;
+            }
         }
-        if (GetSkillLevel(job, id) == 0) flag = false;
+        if (GetSkillLevel(job, id) == 0 && flag)
+        {
+            homeUIManager.ShowAlertImage("このスキルのレベルは下限に達しました");
+            flag = false;
+        }
+        if (myStatus.Level < getLevel && flag)
+        {
+            homeUIManager.ShowAlertImage("習得に必要なレベルに達していません");
+            flag = false;
+        }
         if (flag)
         {
             SkillLevelChange(job, id, -1);

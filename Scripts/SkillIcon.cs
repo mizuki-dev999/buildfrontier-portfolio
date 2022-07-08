@@ -19,12 +19,14 @@ public class SkillIcon : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private int job;
     private int id;
     private int level;
+    
     public void Init(int job = -1, int id = -1)
     {
         if(job == -1 || id == -1)
         {
             skillImage.color = new Color(1, 1, 1, 0);
             canSkill = false;
+            isCooltime = false;
         }
         else
         {
@@ -45,24 +47,41 @@ public class SkillIcon : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public void ActiveSkill()
     {
         if (!canSkill) return;
-        if (skillEffectManager.battleManager.phase == BattleManager.Phase.BattlePhase) return;
+        if (skillEffectManager.battleManager.phase != BattleManager.Phase.BattlePhase) return;
         if (isCooltime)
         {
             Debug.Log("クールタイム中");
             return;
         }
+        float hpStealRate = 0;
+        float mpStealRate = 0;
         foreach (SkillDatabase.Skill.SkillEffect skillEffect in skill.skillEffects)
         {
             switch (skillEffect.effectType)
             {
+                case SkillDatabase.Skill.SkillEffect.EffectType.ライフスティール:
+                    hpStealRate += skillEffect.EffectAmount;
+                    break;
+                case SkillDatabase.Skill.SkillEffect.EffectType.マナスティール:
+                    mpStealRate += skillEffect.EffectAmount;
+                    break;
                 case SkillDatabase.Skill.SkillEffect.EffectType.攻撃スキル:
-                    battleManager.MySkillAttack(skillEffect.EffectAmount*level);
+                    battleManager.MySkillAttack(skillEffect.EffectAmount*level, hpStealRate, mpStealRate);
                     break;
                 case SkillDatabase.Skill.SkillEffect.EffectType.HP回復スキル:
                     battleManager.RecoverMyHp(skillEffect.EffectAmount * level);
                     break;
                 case SkillDatabase.Skill.SkillEffect.EffectType.MP回復スキル:
                     battleManager.RecoverMyMp(skillEffect.EffectAmount * level);
+                    break;
+                default:
+                    if (skillEffect.target == 0) skillEffectManager.BeginMyEffect((int)skillEffect.effectType - 9, skillEffect.EffectAmount * level, skill.EffectTime);
+                    else
+                    {
+                        if((int)skillEffect.effectType <= 27) skillEffectManager.BeginEnemyEffect(((int)skillEffect.effectType - 9) / 2, skillEffect.EffectAmount * level, skill.EffectTime);
+                        else if ((int)skillEffect.effectType == 41) skillEffectManager.BeginEnemyEffect(19, skillEffect.EffectAmount * level, skill.EffectTime);
+                        else if ((int)skillEffect.effectType >= 29) skillEffectManager.BeginEnemyEffect((int)skillEffect.effectType - 19, skillEffect.EffectAmount * level, skill.EffectTime);
+                    }
                     break;
             }
         }
@@ -80,18 +99,12 @@ public class SkillIcon : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         coolTimeImage.fillAmount = 0;
         skillImage.color = Color.white;
     }
-    public void FinishEffect()
-    {
-
-    }
-    public void BeginEffect()
-    {
-
-    }
+    
     public void OnPointerEnter(PointerEventData eventData)
     {
-        skillHoverCover.SetActive(true);
+        if (!canSkill) return;
         if (!skillEffectManager.battleManager.myStatus.showSkillInfo) return;
+        skillHoverCover.SetActive(true);
         stageUIManager.skillInfoPanel.SetActive(true);
         ChangeSkillName(job, id, stageUIManager.skillNameText);
         ChangeSkillInfo(GetSkillLevel(job, id), stageUIManager.skillInfoText);
@@ -99,10 +112,12 @@ public class SkillIcon : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     }
     public void OnPointerExit(PointerEventData eventData)
     {
-        skillHoverCover.SetActive(false);
+        if (!canSkill) return;
         if (!skillEffectManager.battleManager.myStatus.showSkillInfo) return;
+        skillHoverCover.SetActive(false);
         stageUIManager.skillInfoPanel.SetActive(false);
     }
+
     public int GetSkillLevel(int job, int id)
     {
         return job switch

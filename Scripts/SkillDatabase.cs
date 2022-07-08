@@ -72,7 +72,7 @@ public class SkillDatabase : ScriptableObject
                 自動HP回復補正,
                 自動MP回復,
                 自動MP回復補正,
-                ガード確率,
+                ガード確率, 
             }
 
             public EffectType effectType;
